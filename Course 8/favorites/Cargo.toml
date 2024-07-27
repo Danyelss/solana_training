@@ -1,12 +1,12 @@
 [package]
-name = "first-program"
+name = "favorites"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 
 [[bin]]
-name = "first-program"
+name = "favorites"
 path = "src/main.rs"
 
 [profile.release]

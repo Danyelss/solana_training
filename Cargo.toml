@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "Course 6/rustlings",
+    "Course 7/first-program",
+    "Course 8/favorites",
+]
