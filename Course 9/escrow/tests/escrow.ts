@@ -145,4 +145,62 @@ it('Puts the tokens Alice offers into the vault when Alice makes an offer', asyn
   await make();
 });
 
+it('Transfers the tokens to Bob and completes the offer when Bob takes the offer', async () => {
+  // Ensure an offer has been made first
+  await make();
+
+  const offerAccountBefore = await program.account.offer.fetch(accounts.offer);
+
+  // Check Bob's initial balances
+  const bobTokenAccountABalanceBefore = new BN((await connection.getTokenAccountBalance(accounts.takerTokenAccountA)).value.amount);
+  const bobTokenAccountBBalanceBefore = new BN((await connection.getTokenAccountBalance(accounts.takerTokenAccountB)).value.amount);
+
+  // Execute the take_offer instruction
+  const transactionSignature = await program.methods
+    .takeOffer(offerAccountBefore.id)
+    .accounts({
+      ...accounts,
+      taker: bob.publicKey,
+    })
+    .signers([bob])
+    .rpc();
+  console.log(transactionSignature);
+  await confirmTransaction(connection, transactionSignature);
+
+  // Check Bob's balances after the offer is taken
+  const bobTokenAccountABalanceAfter = new BN((await connection.getTokenAccountBalance(accounts.takerTokenAccountA)).value.amount);
+  const bobTokenAccountBBalanceAfter = new BN((await connection.getTokenAccountBalance(accounts.takerTokenAccountB)).value.amount);
+
+  // Check Alice's balance after the offer is taken
+  const aliceTokenAccountABalanceAfter = new BN((await connection.getTokenAccountBalance(accounts.makerTokenAccountA)).value.amount);
+  const aliceTokenAccountBBalanceAfter = new BN((await connection.getTokenAccountBalance(accounts.makerTokenAccountB)).value.amount);
+
+  // The vault should now be empty
+  const vaultBalanceAfter = new BN((await connection.getTokenAccountBalance(accounts.vault)).value.amount);
+  assert(vaultBalanceAfter.eq(new BN(0)));
+
+  // Bob's token A balance should increase by the offered amount
+  assert(bobTokenAccountABalanceAfter.eq(bobTokenAccountABalanceBefore.add(tokenAOfferedAmount)));
+
+  // Bob's token B balance should decrease by the wanted amount
+  assert(bobTokenAccountBBalanceAfter.eq(bobTokenAccountBBalanceBefore.sub(tokenBWantedAmount)));
+
+  // Alice's token A balance should not change
+  const aliceTokenAccountABalanceBefore = new BN((await connection.getTokenAccountBalance(accounts.makerTokenAccountA)).value.amount);
+  assert(aliceTokenAccountABalanceAfter.eq(aliceTokenAccountABalanceBefore));
+
+  // Alice's token B balance should increase by the wanted amount
+  assert(aliceTokenAccountBBalanceAfter.eq(aliceTokenAccountABalanceBefore.add(tokenBWantedAmount)));
+
+  // The offer account should no longer exist or should be marked as completed
+  let offerAccountAfter;
+  try {
+    offerAccountAfter = await program.account.offer.fetch(accounts.offer);
+  } catch (error) {
+    // The account no longer exists, which is expected after the offer is taken
+    offerAccountAfter = null;
+  }
+  assert(offerAccountAfter === null);
+});
+
 })
